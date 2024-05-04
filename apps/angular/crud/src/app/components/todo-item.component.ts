@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   input,
   output,
 } from '@angular/core';
@@ -29,6 +30,9 @@ import {
           Delete
         }
       </button>
+      @if (errorMessage()) {
+        {{ errorMessage() }}
+      }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +40,10 @@ import {
 export class TodoItemComponent {
   public todo = input.required<TodoListItemWithStatus>();
   public todoItemStatus = todoListItemStatus;
+  public errorMessage = computed(() => {
+    const errorStatus = this.todo().status;
+    return typeof errorStatus === 'object' ? errorStatus.error : null;
+  });
   public updateEvent = output();
   public deleteEvent = output();
 }

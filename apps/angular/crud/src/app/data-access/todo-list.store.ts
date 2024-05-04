@@ -1,5 +1,7 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Todo } from '@ngneat/falso';
+import { tapResponse } from '@ngrx/operators';
 import { patchState, signalStore, withHooks, withMethods } from '@ngrx/signals';
 import {
   removeEntity,
@@ -8,7 +10,7 @@ import {
   withEntities,
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { pipe, switchMap, tap } from 'rxjs';
+import { concatMap, pipe, switchMap, tap } from 'rxjs';
 import {
   TodoListItemWithStatus,
   todoListItemStatus,
@@ -45,13 +47,35 @@ export const TodoListStore = signalStore(
             }),
           ),
         ),
-        switchMap(({ id, todo }) => todoService.update(id, todo)),
-        tap((updatedTodo) =>
-          patchState(
-            store,
-            updateEntity({
-              id: updatedTodo.id,
-              changes: { ...updatedTodo, status: todoListItemStatus.idle },
+        concatMap(({ id, todo }) =>
+          todoService.update(id, todo).pipe(
+            tapResponse({
+              next: (updatedTodo) =>
+                patchState(
+                  store,
+                  updateEntity({
+                    id,
+                    changes: {
+                      ...updatedTodo,
+                      status: todoListItemStatus.idle,
+                    },
+                  }),
+                ),
+              error: (error: HttpErrorResponse) => {
+                console.error(error);
+                patchState(
+                  store,
+                  updateEntity({
+                    id,
+                    changes: {
+                      status: {
+                        error:
+                          typeof error === 'string' ? error : error.message,
+                      },
+                    },
+                  }),
+                );
+              },
             }),
           ),
         ),
@@ -68,8 +92,28 @@ export const TodoListStore = signalStore(
             }),
           ),
         ),
-        switchMap(({ id }) => todoService.delete(id)),
-        tap((deletedId) => patchState(store, removeEntity(deletedId))),
+        concatMap(({ id }) =>
+          todoService.delete(id).pipe(
+            tapResponse({
+              next: (deletedId) => patchState(store, removeEntity(deletedId)),
+              error: (error: HttpErrorResponse) => {
+                console.error(error);
+                patchState(
+                  store,
+                  updateEntity({
+                    id,
+                    changes: {
+                      status: {
+                        error:
+                          typeof error === 'string' ? error : error.message,
+                      },
+                    },
+                  }),
+                );
+              },
+            }),
+          ),
+        ),
       ),
     );
     return {

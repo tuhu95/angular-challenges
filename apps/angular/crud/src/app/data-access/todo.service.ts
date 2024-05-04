@@ -1,3 +1,4 @@
+import { randomErrorHttp } from '@angular-challenges/shared/utils';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
@@ -20,13 +21,16 @@ export class TodoService {
     id: number,
     todo: Partial<Omit<TodoListItem, 'id'>>,
   ): Observable<TodoListItemWithStatus> {
-    return this.http
-      .put<TodoListItem>(`${this.baseUrl}/${id}`, todo, {
-        headers: {
-          'Content-type': 'application/json; charset=UTF-8',
-        },
-      })
-      .pipe(map((todo) => ({ ...todo, status: 'idle' })));
+    return randomErrorHttp({
+      httpRequest: () =>
+        this.http
+          .put<TodoListItem>(`${this.baseUrl}/${id}`, todo, {
+            headers: {
+              'Content-type': 'application/json; charset=UTF-8',
+            },
+          })
+          .pipe(map((todo) => ({ ...todo, status: 'idle' }))),
+    });
   }
   public delete(id: number) {
     return this.http.delete(`${this.baseUrl}/${id}`).pipe(map(() => id));
