@@ -19,10 +19,11 @@ export class TodoStore {
   });
   // Actions
   public updateTodoAction = new Subject<UpdateTodoDto>();
+  public deleteTodoAction = new Subject<number>();
 
   constructor() {
     this.todoService
-      .getTodos()
+      .getAll()
       .pipe(takeUntilDestroyed())
       .subscribe((todos) => {
         this.state.set({
@@ -33,17 +34,8 @@ export class TodoStore {
 
     this.updateTodoAction
       .pipe(
-        // First update the loading state of selected todo
-        tap((updatedTodo) => {
-          this.state.update((state) => ({
-            ...state,
-            data: state.data.map((todo) =>
-              todo.id === updatedTodo.id ? { ...todo, isLoading: true } : todo,
-            ),
-          }));
-        }),
         // Then call api to update the selected todo
-        concatMap((todo) => this.todoService.updateTodo(todo)),
+        concatMap((todo) => this.todoService.update(todo)),
         // Finally update the selected todo in state
         tap((updatedTodo) => {
           this.state.update((state) => ({
@@ -51,6 +43,18 @@ export class TodoStore {
             data: state.data.map((todo) =>
               todo.id === updatedTodo.id ? updatedTodo : todo,
             ),
+          }));
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+    this.deleteTodoAction
+      .pipe(
+        concatMap((id) => this.todoService.delete(id)),
+        tap((deletedTodoId) => {
+          this.state.update((state) => ({
+            ...state,
+            data: state.data.filter((todo) => todo.id !== deletedTodoId),
           }));
         }),
         takeUntilDestroyed(),
